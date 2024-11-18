@@ -53,9 +53,9 @@ def main(site_url):
     is_up, status = check_site_status(site_url)
 
     if is_up and status == "Populated":
-        return {"Still Up"}
+        return {"Closed":"Still Up"}
     else:
-        return latest_date
+        return {"Closed":latest_date}
 
 
 def scrape_tour_info(url):
