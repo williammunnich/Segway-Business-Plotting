@@ -2,6 +2,7 @@ import pandas as pd
 import folium
 from folium.plugins import TimestampedGeoJson
 from datetime import datetime
+from branca.element import Element
 
 def create_interactive_map(data):
     # Create a base map centered globally
@@ -56,18 +57,58 @@ def create_interactive_map(data):
         'features': features,
     }
 
-    # Add the TimestampedGeoJson layer
-    TimestampedGeoJson(
-        geojson,
+    # Add the TimestampedGeoJson layer with adjusted options
+    timestamped_geojson = TimestampedGeoJson(
+        data=geojson,
         period='P1D',  # Time interval for the slider (1 Day)
         add_last_point=True,
         auto_play=True,
-        loop=False,
-        max_speed=1,
+        loop=False,  # We'll handle looping in custom JavaScript
+        max_speed=3000,  # Increase max_speed for faster playback
         loop_button=True,
         date_options='YYYY-MM-DD',
         time_slider_drag_update=True,
-    ).add_to(m)
+        transition_time=3000,  # Decrease transition time for faster animation
+    )
+
+    # Add the layer to the map
+    timestamped_geojson.add_to(m)
+
+    # Add custom JavaScript to implement the boomerang effect
+    boomerang_js = """
+    <script>
+    var td_player = document.getElementsByClassName('leaflet-control-timecontrol')[0].td_player;
+    var originalNextTime = td_player._getNextTime.bind(td_player);
+    var originalPrevTime = td_player._getPrevTime.bind(td_player);
+    var direction = 'forward';
+
+    td_player._step = function() {
+        if (!this._timeDimension) {
+            return;
+        }
+
+        var currentTime = this._timeDimension.getCurrentTimeIndex();
+        var maxTime = this._timeDimension.getAvailableTimes().length - 1;
+
+        if (direction === 'forward') {
+            var nextTime = originalNextTime(1);
+            if (nextTime > maxTime) {
+                direction = 'backward';
+                nextTime = originalPrevTime(1);
+            }
+        } else {
+            var nextTime = originalPrevTime(1);
+            if (nextTime < 0) {
+                direction = 'forward';
+                nextTime = originalNextTime(1);
+            }
+        }
+
+        this._timeDimension.setCurrentTimeIndex(nextTime);
+    };
+    </script>
+    """
+    m.get_root().html.add_child(Element(boomerang_js))
 
     # Save the map to an HTML file
     m.save('tours_map.html')
